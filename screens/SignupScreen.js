@@ -1,22 +1,28 @@
-import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Icon, colors } from 'react-native-elements';
+import { colors } from 'react-native-elements';
 import { useFocusEffect } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import CountryPicker from 'react-native-country-picker-modal';
 import axios from 'axios';
 
 const SignupScreen = ({ navigation }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [country, setCountry] = useState('');
-  const [phoneCode, setPhoneCode] = useState('+233');
+  const [country, setCountry] = useState(null);
+  const [countryCode, setCountryCode] = useState('+233');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [showPhoneNumber, setShowPhoneNumber] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+  const [withFlag, setWithFlag] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
       const backAction = () => {
-        // Disable back navigation
         return true;
       };
 
@@ -29,24 +35,40 @@ const SignupScreen = ({ navigation }) => {
     }, [navigation])
   );
 
+  const handlePhoneInputBlur = () => {
+    setShowPhoneNumber(false);
+    if (phoneNumber.length !== 10) {
+      setPhoneError('Phone number must be exactly 10 digits.');
+    } else {
+      setPhoneError('');
+    }
+  };
+
+  const handlePhoneNumberChange = (text) => {
+    const cleanedText = text.replace(/[^0-9]/g, '');
+    if (cleanedText.length <= 10) {
+      setPhoneNumber(cleanedText);
+    }
+  };
+
   const handleSignup = async () => {
+    setLoading(true);
     try {
-      const response = await axios.post('https://your-api-endpoint.com/signup', {
+      const userData = {
         firstName,
         lastName,
         email,
         country,
-        phone: `${phoneCode}${phoneNumber}`,
-      });
-
-      if (response.status === 200) {
-        navigation.navigate('RegistrationScreen');
-      } else {
-        // Handle other statuses
-        console.error('Signup failed:', response.data);
-      }
+        phone: `${countryCode}${phoneNumber}`,
+      };
+      const response = await axios.post('http://54.160.124.158:3000/auth/sign-up', userData);
+      Alert.alert('Signup Successful', 'You have signed up successfully!');
+      navigation.navigate('HomeScreen');
     } catch (error) {
       console.error('Error during signup:', error);
+      Alert.alert('Signup Failed', `An error occurred during signup: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -98,42 +120,54 @@ const SignupScreen = ({ navigation }) => {
         </View>
         <View style={{ paddingTop: 12, marginBottom: 12 }}>
           <View style={styles.inputContainer}>
-            <TextInput
-              placeholder='Search for country'
-              placeholderTextColor={colors.black}
-              keyboardType='default'
-              style={styles.input}
-              value={country}
-              onChangeText={setCountry}
-            />
+            <TouchableOpacity onPress={() => setShowCountryPicker(true)} style={styles.countryPickerContainer}>
+              <Text style={styles.input}>
+                {country || 'Select Country'}
+              </Text>
+            </TouchableOpacity>
           </View>
+          <CountryPicker
+            withFlag={true}
+            withFilter={true}
+            withCountryNameButton={true}
+            onSelect={(selectedCountry) => {
+              setCountry(selectedCountry.name);
+              setCountryCode(`+${selectedCountry.callingCode}`);
+              setShowCountryPicker(false);
+            }}
+            visible={showCountryPicker}
+            onClose={() => setShowCountryPicker(false)}
+          />
         </View>
-        <View style={{ paddingTop: 12, marginBottom: 12 }}>
-          <View style={styles.phoneInputContainer}>
-            <TextInput
-              placeholder='+233'
-              placeholderTextColor={colors.black}
-              keyboardType='phone-pad'
-              style={styles.phoneCodeInput}
-              value={phoneCode}
-              onChangeText={setPhoneCode}
-            />
-            <TextInput
-              placeholder='Phone Number'
-              placeholderTextColor={colors.black}
-              keyboardType='phone-pad'
-              style={styles.phoneNumberInput}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-            />
-          </View>
+        <View style={styles.phoneInputContainer}>
+          <TouchableOpacity
+            onPress={() => setShowCountryPicker(true)}
+            style={styles.countryCodeButton}
+          >
+            <Text style={styles.countryCodeText}>
+              {countryCode}
+            </Text>
+            <Ionicons name="caret-down-outline" size={20} color={colors.black} />
+          </TouchableOpacity>
+          <TextInput
+            placeholder='Phone Number'
+            placeholderTextColor={colors.black}
+            keyboardType='numeric'
+            style={styles.phoneNumberInput}
+            onFocus={() => setShowPhoneNumber(true)}
+            onBlur={handlePhoneInputBlur}
+            value={phoneNumber}
+            onChangeText={handlePhoneNumberChange}
+          />
         </View>
+        {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
         <View>
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleSignup}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>Create an account</Text>
+            <Text style={styles.buttonText}>{loading ? 'Signing Up...' : 'Create an account'}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.footer}>
@@ -188,15 +222,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingLeft: 22,
+    alignItems: 'center',
   },
-  phoneCodeInput: {
-    width: '20%',
-    borderRightWidth: 1,
-    borderRightColor: colors.grey1,
-    height: '100%',
+  countryCodeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  countryCodeText: {
+    fontSize: 16,
+    color: colors.black,
   },
   phoneNumberInput: {
-    width: '75%',
+    flex: 1,
+    paddingLeft: 12,
   },
   loginButton: {
     backgroundColor: '#f25c5c',
@@ -225,5 +263,13 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: 'bold',
     marginLeft: 6,
+  },
+  errorText: {
+    color: 'red',
+    marginTop: 4,
+  },
+  countryPickerContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
