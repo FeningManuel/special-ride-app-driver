@@ -63,7 +63,7 @@ const SignupScreen = ({ navigation }) => {
       };
       const response = await axios.post('http://54.160.124.158:3000/auth/sign-up', userData);
       Alert.alert('Signup Successful', 'You have signed up successfully!');
-      navigation.navigate('HomeScreen');
+      navigation.navigate('RegistrationScreen');
     } catch (error) {
       console.error('Error during signup:', error);
       Alert.alert('Signup Failed', `An error occurred during signup: ${error.message}`);
@@ -80,7 +80,7 @@ const SignupScreen = ({ navigation }) => {
         </View>
         <View style={{ marginVertical: 3 }}>
           <Text style={styles.welcomeText}>Hello there,</Text>
-          <Text style={styles.subText}>Create an account as passenger,</Text>
+          <Text style={styles.subText}>Create an account as driver,</Text>
         </View>
         <View style={{ paddingTop: 30, marginBottom: 12 }}>
           <View style={styles.inputContainer}>
